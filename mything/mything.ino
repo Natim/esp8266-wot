@@ -32,6 +32,8 @@ int lastButtonState = 1;
 int lastLedState = 0;
 int lastBuzzerFrequency = -1;
 
+StaticJsonBuffer<200> jsonBuffer;
+  
 // LED on the pin D13
 int led = D13;
 
@@ -57,6 +59,8 @@ void rencontreDuTroisiemeType() {
   noTone(0);
 }
 
+// JSON library
+#include <ArduinoJson.h>
 // Kinto library
 #include <ESP8266Kinto.h>
 
@@ -99,28 +103,38 @@ void handle_button() {
   delay(100);
 };
 
-void handle_led() {
+void handle_post_led() {
   lastLedState = lastLedState ? 0 : 1;
   if (lastLedState == 0) {
     digitalWrite(led, LOW);
-    server.send(200, "application/json",
-      "{\"led\":false}");
     kinto.patch("0cb76114-2cc4-49a9-987b-a2e127006e18", "{\"data\": {\"value\": \"off\"}}");
   } else {
     digitalWrite(led, HIGH);
-    server.send(200, "application/json",
-      "{\"led\":true}");
     kinto.patch("0cb76114-2cc4-49a9-987b-a2e127006e18", "{\"data\": {\"value\": \"on\"}}");
   }
-  delay(100);
+  handle_get_led();
 };
 
+void handle_get_led() {
+  if (lastLedState == 0) {
+    server.send(200, "application/json", "{\"led\":false}");
+  } else {
+    server.send(200, "application/json", "{\"led\":true}");
+  }
+  delay(100);
+}
 
-void handle_buzzer() {
-  kinto.patch("070af12b-521f-42fe-8625-c9a5a1fe9320", "{\"data\": {\"value\": \"on\"}}");
+
+void handle_post_buzzer() {
+  JsonObject& root = jsonBuffer.parseObject(server.arg("plain"));
+  lastBuzzerFrequency = root["value"].as<int>();
   rencontreDuTroisiemeType();
-  server.send(200, "application/json", "{\"buzzer\": -1}");
-  kinto.patch("070af12b-521f-42fe-8625-c9a5a1fe9320", "{\"data\": {\"value\": \"off\"}}");
+  kinto.patch("070af12b-521f-42fe-8625-c9a5a1fe9320", "{\"data\": {\"value\": " + String(lastBuzzerFrequency) + "}}");
+  handle_get_buzzer();
+};
+
+void handle_get_buzzer() {
+  server.send(200, "application/json", "{\"buzzer\": " + String(lastBuzzerFrequency) + "}");
   delay(100);
 };
 
@@ -148,8 +162,10 @@ void setup()
 
   server.on("/", handle_root);
   server.on("/button", handle_button);
-  server.on("/led", handle_led);
-  server.on("/buzzer", handle_buzzer);
+  server.on("/led", HTTP_GET, handle_get_led);
+  server.on("/led", HTTP_POST, handle_post_led);
+  server.on("/buzzer", HTTP_GET, handle_get_buzzer);
+  server.on("/buzzer", HTTP_POST, handle_post_buzzer);
   server.begin();
   Serial.println("HTTP server started");
 }
