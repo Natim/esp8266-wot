@@ -104,19 +104,23 @@ void handle_led() {
   if (lastLedState == 0) {
     digitalWrite(led, LOW);
     server.send(200, "application/json",
-      "{\"led\":\"off\"}");
+      "{\"led\":false}");
+    kinto.patch("0cb76114-2cc4-49a9-987b-a2e127006e18", "{\"data\": {\"value\": \"off\"}}");
   } else {
     digitalWrite(led, HIGH);
     server.send(200, "application/json",
-      "{\"led\":\"on\"}");
+      "{\"led\":true}");
+    kinto.patch("0cb76114-2cc4-49a9-987b-a2e127006e18", "{\"data\": {\"value\": \"on\"}}");
   }
   delay(100);
 };
 
 
 void handle_buzzer() {
+  kinto.patch("070af12b-521f-42fe-8625-c9a5a1fe9320", "{\"data\": {\"value\": \"on\"}}");
   rencontreDuTroisiemeType();
   server.send(200, "application/json", "{\"buzzer\": -1}");
+  kinto.patch("070af12b-521f-42fe-8625-c9a5a1fe9320", "{\"data\": {\"value\": \"off\"}}");
   delay(100);
 };
 
